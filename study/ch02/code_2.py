@@ -146,13 +146,13 @@ from sklearn.base import BaseEstimator, TransformerMixin
 rooms_ix, bedrooms_ix, population_ix, households_ix = 3, 4, 5, 6
 class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
     def __init__(self, add_bedrooms_per_room = True):
-        self.add_bedrooms_per_rooms = add_bedrooms_per_room
+        self.add_bedrooms_per_room = add_bedrooms_per_room
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         rooms_per_household = X[:, rooms_ix] / X[:, households_ix]
         population_per_household = X[:, population_ix] / X[:, households_ix]
-        if self.add_bedrooms_per_rooms:
+        if self.add_bedrooms_per_room:
             bedrooms_per_room = X[:, bedrooms_ix] / X[:, households_ix]
             return np.c_[X, rooms_per_household, population_per_household, bedrooms_per_room]
         else:
@@ -165,13 +165,13 @@ housing_extra_attribs = attr_adder.transform(housing.values)
 ##変換パイプラインの例
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-
+print('hello0')
 num_pipeline = Pipeline([
     ('imputer', SimpleImputer(strategy='median')),
     ('attribs_adder', CombinedAttributesAdder()),
     ('std_scaler', StandardScaler())
 ])
-
+print('hello1')
 from sklearn.compose import ColumnTransformer
 num_attribs = list(housing_num)
 cat_attribs = ['ocean_proximity']
@@ -179,7 +179,48 @@ full_pipeline = ColumnTransformer([
     ('num', num_pipeline, num_attribs),
     ('cat', OneHotEncoder(), cat_attribs),
 ])
+print('hello2')
 housing_prepared = full_pipeline.fit_transform(housing)
+print('hello3')
+#線形回帰モデル
+from sklearn.linear_model import LinearRegression
+lin_reg = LinearRegression()
+lin_reg.fit(housing_prepared, housing_labels)
 
+#予測
+some_data = housing.iloc[:5]
+some_labels = housing_labels.iloc[:5]
+some_data_prepared = full_pipeline.transform(some_data)
+print('Predictions:', lin_reg.predict(some_data_prepared))
+print('Labels:', list(some_labels))
 
+# 回帰モデルの訓練セット全体に対するRMSE
+from sklearn.metrics import mean_squared_error
+housing_predictions = lin_reg.predict(housing_prepared)
+lin_mse = mean_squared_error(housing_labels, housing_predictions)
+lin_rmse = np.sqrt(lin_mse)
+print(lin_rmse)
 
+#より強力なモデル　6章　決定木
+from sklearn.tree import DecisionTreeRegressor
+tree_reg = DecisionTreeRegressor()
+tree_reg.fit(housing_prepared, housing_labels)
+#予測
+housing_predictions = tree_reg.predict(housing_prepared)
+tree_mse = mean_squared_error(housing_labels, housing_predictions)
+tree_rmse = np.sqrt(tree_mse)
+print(tree_rmse)#誤差なし？？？　訓練セットを訓練，検証に分けてみる
+
+#k-fold cross-validation
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(tree_reg, housing_prepared, housing_labels,
+                         scoring='neg_mean_squared_error', cv=10)
+tree_rmse_scores = np.sqrt(-scores)
+
+def display_scores(scores):
+    print('Scores: ', scores)
+    print('Mean: ', scores.mean())
+    print('Standard deviation: ', scores.std())
+display_scores(tree_rmse_scores)
+
+# 7章　ランダムフォレスト
