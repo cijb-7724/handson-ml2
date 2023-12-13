@@ -2,7 +2,9 @@
 iris dataset
 
 4.6.3 決定境界
-
+iris dataset
+setora, versicolor, virginica
+2つのクラス，どちらに分類される確率も等しい値
 
 4.6.4 ソフトマックス回帰
 
